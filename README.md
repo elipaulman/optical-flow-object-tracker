@@ -1,1 +1,113 @@
-# optical-flow-object-tracker
+# Motion Tracking and Speed Estimation Using Pyramidal Lucas–Kanade
+
+This project tracks a moving object in a short video and estimates its trajectory and speed using the computer vision techniques taught in CSE 5524. We detect good features on the object, track them frame by frame using our own pyramidal Lucas–Kanade implementation, and filter out outliers to keep the motion stable. With a known reference visible in the scene, we convert pixel displacement into real-world units to compute speed over time. The final output overlays the tracked points and trajectory on the video and provides simple motion analysis.
+
+---
+
+## Dataset
+We use stable YouTube videos that show a single moving object with minimal camera shake. Each clip includes a visible reference object, such as painted field lines or a known-length marker, which allows pixel distances to be converted into meters.
+
+---
+
+## Team
+- **Eli Paulman**  
+- **Eli Click**
+
+---
+
+## Responsibilities
+
+### Eli Paulman
+I implement the low-level vision algorithms that drive the tracking:
+- Harris or Shi–Tomasi corner detector  
+- Gaussian image pyramids  
+- Spatial image gradients using Sobel filters  
+- Pyramidal Lucas–Kanade flow computation  
+- Solving the 2×2 normal equations for per-point motion  
+- Coarse-to-fine refinement of flow  
+- Parameter experiments to evaluate how window size, pyramid depth, and corner thresholds impact stability  
+
+These components establish the core feature tracking capability the system relies on.
+
+### Eli Click
+I implement the higher-level tracking pipeline and motion analysis:
+- KLT-style feature management (initialization, updating, dropping, re-detection)  
+- User-selected object region  
+- Outlier rejection with a simple RANSAC-based affine or translational model  
+- Re-detection of features when too few remain  
+- Pixel-to-world scale estimation using a known reference  
+- Object center tracking  
+- Displacement and speed computation  
+- Visualization of tracks, trajectory, and speed plots  
+
+These steps turn the raw flow vectors into a complete and stable object-tracking system.
+
+---
+
+## Implementation Steps
+
+### 1. Preprocessing
+- Convert video frames to grayscale  
+- Apply a small Gaussian blur  
+- Normalize if needed  
+
+### 2. Feature Detection (Paulman)
+- Implement Harris or Shi–Tomasi detector  
+- Select top corners inside the object region  
+- Visualize for verification  
+
+### 3. Image Pyramids (Paulman)
+- Build Gaussian pyramids for each frame  
+- Downsample by a factor of 2 per level  
+- Compute and store gradients at each level  
+
+### 4. Lucas–Kanade Optical Flow (Paulman)
+- Compute gradients Ix, Iy, and It  
+- Form and solve 2×2 systems for each feature  
+- Iterate motion refinement across pyramid levels  
+- Return updated feature locations  
+
+### 5. Tracking Logic (Click)
+- Initialize feature set  
+- Update positions each frame using LK flow  
+- Remove features with poor residuals  
+- Keep the tracked region aligned with object motion  
+
+### 6. Outlier Rejection (Click)
+- Fit a simple model (translation or affine)  
+- Apply RANSAC to filter mismatches  
+- Use inlier transformation to update region  
+
+### 7. Re-Detection (Click)
+- If too many features fail, re-detect features inside the current region  
+- Merge newly detected corners into the tracker  
+
+### 8. Real-World Motion Estimation (Click)
+- Compute pixel-to-meter scale using known reference  
+- Track object center across frames  
+- Convert displacement to speed  
+- Produce speed-time plots  
+
+### 9. Visualization and Output
+- Draw tracked features and bounding box  
+- Overlay the object trajectory  
+- Save annotated output video  
+- Export CSV with per-frame position and speed  
+
+---
+
+## Evaluation
+
+### Eli Paulman
+I evaluate the optical flow by comparing tracked positions to a small set of hand-labeled points. I vary LK parameters to measure their effect on stability and error.
+
+### Eli Click
+I evaluate full tracking quality by checking trajectory smoothness, outlier rates, and accuracy of measured distances compared to known real-world geometry. I confirm that the tracked path matches the object’s visible motion.
+
+---
+
+## Outside Techniques
+We use a simple RANSAC procedure for discarding outlier matches when estimating motion models. RANSAC is a small helper and stays well under the 20 percent limit.  
+Reference: https://en.wikipedia.org/wiki/Random_sample_consensus
+
+---
