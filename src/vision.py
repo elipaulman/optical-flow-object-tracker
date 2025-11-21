@@ -9,10 +9,6 @@ def preprocess_frame(frame, blur_ksize=5):
         gray = gaussian_blur(gray.astype(np.float32), ksize=blur_ksize)
     return gray.astype(np.float32)
 
-
-# --- Small custom ops to avoid cv2.Sobel and cv2.pyrDown ---------------------------------
-
-
 def _convolve_separable(image, kx, ky):
     """Separable 1D conv: horizontal kx then vertical ky. image float32."""
     h, w = image.shape
