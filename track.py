@@ -45,6 +45,8 @@ def parse_args():
     parser.add_argument("--bright-max-aspect", type=float, default=3.0, help="Reject bright blobs with aspect ratio above this (filters line-like shapes)")
     parser.add_argument("--bright-dist-weight", type=float, default=1.0, help="Distance penalty weight for bright-spot scoring")
     parser.add_argument("--bright-max-jump", type=float, default=60.0, help="Reject bright-spot jumps larger than this (pixels)")
+    parser.add_argument("--bright-min-fill", type=float, default=0.2, help="Minimum fill ratio (area/(w*h)) for bright spots")
+    parser.add_argument("--bright-max-dim", type=float, default=120, help="Maximum width/height for bright blobs")
     return parser.parse_args()
 
 
@@ -99,7 +101,6 @@ def annotate(frame, roi, points, trajectory, center, speed_m_s, fps):
 def run():
     args = parse_args()
     ensure_output_paths(args)
-    scale = compute_scale(args)
 
     cap = cv2.VideoCapture(args.input)
     if not cap.isOpened():
@@ -117,6 +118,9 @@ def run():
 
     prev_gray = preprocess_frame(frame)
     roi = tuple(args.roi) if args.roi else default_roi(frame.shape)
+
+    # Compute scale (pixels -> meters)
+    scale = compute_scale(args)
 
     tracker = FeatureTracker(
         max_corners=args.max_corners,
@@ -144,6 +148,8 @@ def run():
         bright_max_aspect=args.bright_max_aspect,
         bright_dist_weight=args.bright_dist_weight,
         bright_max_jump=args.bright_max_jump,
+        bright_min_fill=args.bright_min_fill,
+        bright_max_dim=args.bright_max_dim,
     )
     tracker.initialize(prev_gray, roi)
 

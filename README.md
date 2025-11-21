@@ -141,6 +141,7 @@ python track.py --input inputs/soccer_footage_2.mp4 --output-video outputs/annot
 python track.py --input inputs/soccer_footage_1.mp4 \
   --roi 520 110 140 140 \
   --exclude-rect 300 330 600 190 \
+  --meters-per-pixel 0.0757 \
   --auto-intensity-percentile 99.95 \
   --intensity-blur 3 \
   --bright-spot --bright-spot-radius 70 --bright-spot-blur 3 --bright-spot-percentile 99.95 --bright-min-area 1 --bright-max-area 60 --bright-max-aspect 2.0 \
