@@ -60,6 +60,8 @@ class FeatureTracker:
         bright_min_area=1,
         bright_max_area=120,
         bright_max_aspect=3.0,
+        bright_dist_weight=1.0,
+        bright_max_jump=60.0,
     ):
         self.max_corners = max_corners
         self.quality_level = quality_level
@@ -80,6 +82,8 @@ class FeatureTracker:
         self.bright_min_area = bright_min_area
         self.bright_max_area = bright_max_area
         self.bright_max_aspect = bright_max_aspect
+        self.bright_dist_weight = bright_dist_weight
+        self.bright_max_jump = bright_max_jump
 
         self.lk = PyramidalLucasKanade(
             window_size=lk_window,
@@ -172,7 +176,7 @@ class FeatureTracker:
             score = max_val
             if ref is not None:
                 dist = np.linalg.norm(np.array([cx, cy]) - ref)
-                score -= dist * 0.5  # prefer closer blobs
+                score -= dist * self.bright_dist_weight  # prefer closer blobs
             if score > best_score:
                 best_score = score
                 best_idx = i
@@ -269,15 +273,16 @@ class FeatureTracker:
         if self.bright_spot:
             spot, _ = self._find_bright_spot(curr_gray)
             if spot is not None:
-                if center is None:
+                if self.last_center is not None and self.bright_max_jump > 0:
+                    if np.linalg.norm(spot - self.last_center) > self.bright_max_jump:
+                        spot = None  # reject implausible jump
+                if spot is not None:
                     center = spot
-                else:
-                    center = spot
-                if self.last_center is not None:
-                    translation = spot - self.last_center
-                if self.initial_roi_size is not None:
-                    w0, h0 = self.initial_roi_size
-                    self.roi = (spot[0] - w0 * 0.5, spot[1] - h0 * 0.5, w0, h0)
+                    if self.last_center is not None:
+                        translation = spot - self.last_center
+                    if self.initial_roi_size is not None:
+                        w0, h0 = self.initial_roi_size
+                        self.roi = (spot[0] - w0 * 0.5, spot[1] - h0 * 0.5, w0, h0)
 
         if center is not None:
             self.last_center = center

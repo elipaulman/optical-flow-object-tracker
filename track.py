@@ -43,6 +43,8 @@ def parse_args():
     parser.add_argument("--bright-min-area", type=int, default=1, help="Minimum blob area for bright-spot selection")
     parser.add_argument("--bright-max-area", type=int, default=120, help="Maximum blob area for bright-spot selection (filter out lines)")
     parser.add_argument("--bright-max-aspect", type=float, default=3.0, help="Reject bright blobs with aspect ratio above this (filters line-like shapes)")
+    parser.add_argument("--bright-dist-weight", type=float, default=1.0, help="Distance penalty weight for bright-spot scoring")
+    parser.add_argument("--bright-max-jump", type=float, default=60.0, help="Reject bright-spot jumps larger than this (pixels)")
     return parser.parse_args()
 
 
@@ -140,6 +142,8 @@ def run():
         bright_min_area=args.bright_min_area,
         bright_max_area=args.bright_max_area,
         bright_max_aspect=args.bright_max_aspect,
+        bright_dist_weight=args.bright_dist_weight,
+        bright_max_jump=args.bright_max_jump,
     )
     tracker.initialize(prev_gray, roi)
 

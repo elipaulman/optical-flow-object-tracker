@@ -136,6 +136,20 @@ Or on the second sample clip:
 python track.py --input inputs/soccer_footage_2.mp4 --output-video outputs/annotated2.mp4
 ```
 
+### Ball-tracking tuned command (works best on the provided aerial clip)
+```bash
+python track.py --input inputs/soccer_footage_1.mp4 \
+  --roi 520 110 140 140 \
+  --exclude-rect 300 330 600 190 \
+  --auto-intensity-percentile 99.95 \
+  --intensity-blur 3 \
+  --bright-spot --bright-spot-radius 70 --bright-spot-blur 3 --bright-spot-percentile 99.95 --bright-min-area 1 --bright-max-area 60 --bright-max-aspect 2.0 \
+  --bright-dist-weight 2.0 --bright-max-jump 40 \
+  --max-corners 0 \
+  --lk-window 5 --lk-levels 3 \
+  --output-video outputs/ball_annotated.mp4 --output-csv outputs/ball_metrics.csv --output-plot outputs/ball_speed.png
+```
+
 Key arguments:
 - `--roi x y w h` sets the initial object region (default: center of the frame).
 - Supply either `--meters-per-pixel` directly or a reference length via `--reference-length-m` and `--reference-pixels`.

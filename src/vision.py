@@ -6,7 +6,7 @@ def preprocess_frame(frame, blur_ksize=5):
     """Convert BGR frame to blurred grayscale float32."""
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     if blur_ksize and blur_ksize > 1:
-        gray = cv2.GaussianBlur(gray, (blur_ksize, blur_ksize), 0)
+        gray = gaussian_blur(gray.astype(np.float32), ksize=blur_ksize)
     return gray.astype(np.float32)
 
 
@@ -49,6 +49,27 @@ def gaussian_blur_5x5(image):
     """5x5 Gaussian blur via separable filter (1,4,6,4,1)/16."""
     kernel = np.array([1.0, 4.0, 6.0, 4.0, 1.0], dtype=np.float32) / 16.0
     return _convolve_separable(image, kernel, kernel)
+
+
+def _gaussian_kernel1d(ksize, sigma=None):
+    """Generate 1D Gaussian kernel."""
+    if ksize % 2 == 0:
+        ksize += 1
+    if sigma is None or sigma <= 0:
+        sigma = 0.3 * ((ksize - 1) * 0.5 - 1) + 0.8  # OpenCV-like default
+    half = ksize // 2
+    x = np.arange(-half, half + 1, dtype=np.float32)
+    kernel = np.exp(-0.5 * (x / sigma) ** 2)
+    kernel /= kernel.sum()
+    return kernel
+
+
+def gaussian_blur(image, ksize=5, sigma=None):
+    """Gaussian blur via custom separable convolution."""
+    if ksize <= 1:
+        return image
+    kx = _gaussian_kernel1d(ksize, sigma)
+    return _convolve_separable(image.astype(np.float32), kx, kx)
 
 
 def pyr_down_custom(image):
