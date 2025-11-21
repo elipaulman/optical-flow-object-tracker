@@ -10,19 +10,65 @@ def preprocess_frame(frame, blur_ksize=5):
     return gray.astype(np.float32)
 
 
+# --- Small custom ops to avoid cv2.Sobel and cv2.pyrDown ---------------------------------
+
+
+def _convolve_separable(image, kx, ky):
+    """Separable 1D conv: horizontal kx then vertical ky. image float32."""
+    h, w = image.shape
+    kx = np.asarray(kx, dtype=np.float32)
+    ky = np.asarray(ky, dtype=np.float32)
+    rx = len(kx) // 2
+    ry = len(ky) // 2
+
+    # horizontal pass (pad left/right only)
+    padded_h = np.pad(image, ((0, 0), (rx, rx)), mode="reflect")
+    tmp = np.zeros_like(image, dtype=np.float32)
+    for i, kv in enumerate(kx):
+        tmp += kv * padded_h[:, i : i + w]
+
+    # vertical pass (pad top/bottom only)
+    padded_v = np.pad(tmp, ((ry, ry), (0, 0)), mode="reflect")
+    out = np.zeros_like(image, dtype=np.float32)
+    for j, kv in enumerate(ky):
+        out += kv * padded_v[j : j + h, :]
+    return out
+
+
+def sobel_gradients(image):
+    """Compute Sobel gradients (dx, dy) without cv2.Sobel."""
+    # Separable Sobel kernels
+    smooth = [1.0, 2.0, 1.0]
+    diff = [1.0, 0.0, -1.0]
+    gx = _convolve_separable(image, diff, smooth)
+    gy = _convolve_separable(image, smooth, diff)
+    return gx, gy
+
+
+def gaussian_blur_5x5(image):
+    """5x5 Gaussian blur via separable filter (1,4,6,4,1)/16."""
+    kernel = np.array([1.0, 4.0, 6.0, 4.0, 1.0], dtype=np.float32) / 16.0
+    return _convolve_separable(image, kernel, kernel)
+
+
+def pyr_down_custom(image):
+    """Rudimentary pyrDown: blur then decimate by 2."""
+    blurred = gaussian_blur_5x5(image)
+    return blurred[::2, ::2]
+
+
 def gaussian_pyramid(image, levels):
     """Build a Gaussian pyramid with the requested number of levels."""
     pyramid = [image]
     for _ in range(1, levels):
-        image = cv2.pyrDown(image)
+        image = pyr_down_custom(image)
         pyramid.append(image)
     return pyramid
 
 
 def compute_gradients(image):
     """Compute spatial image gradients for a single grayscale level."""
-    ix = cv2.Sobel(image, cv2.CV_32F, 1, 0, ksize=3, scale=1, delta=0, borderType=cv2.BORDER_REFLECT101)
-    iy = cv2.Sobel(image, cv2.CV_32F, 0, 1, ksize=3, scale=1, delta=0, borderType=cv2.BORDER_REFLECT101)
+    ix, iy = sobel_gradients(image)
     return ix, iy
 
 
@@ -31,6 +77,19 @@ def build_pyramid_with_gradients(image, levels):
     pyr = gaussian_pyramid(image, levels)
     grads = [compute_gradients(level) for level in pyr]
     return pyr, grads
+
+
+def _box_filter(image, ksize):
+    """Simple box filter using separable uniform kernels."""
+    if isinstance(ksize, tuple):
+        kx, ky = ksize
+    else:
+        kx = ky = ksize
+    kx = int(kx)
+    ky = int(ky)
+    kernel_x = np.ones(kx, dtype=np.float32) / float(kx)
+    kernel_y = np.ones(ky, dtype=np.float32) / float(ky)
+    return _convolve_separable(image, kernel_x, kernel_y)
 
 
 def _non_maximum_suppression(response, threshold, min_distance):
@@ -71,15 +130,14 @@ def shi_tomasi_corners(
     if gray.dtype != np.float32:
         gray = gray.astype(np.float32)
 
-    ix = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3, borderType=cv2.BORDER_REFLECT101)
-    iy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3, borderType=cv2.BORDER_REFLECT101)
+    ix, iy = sobel_gradients(gray)
     ix2 = ix * ix
     iy2 = iy * iy
     ixy = ix * iy
 
-    sxx = cv2.boxFilter(ix2, ddepth=-1, ksize=(block_size, block_size), normalize=False, borderType=cv2.BORDER_REFLECT101)
-    syy = cv2.boxFilter(iy2, ddepth=-1, ksize=(block_size, block_size), normalize=False, borderType=cv2.BORDER_REFLECT101)
-    sxy = cv2.boxFilter(ixy, ddepth=-1, ksize=(block_size, block_size), normalize=False, borderType=cv2.BORDER_REFLECT101)
+    sxx = _box_filter(ix2, (block_size, block_size))
+    syy = _box_filter(iy2, (block_size, block_size))
+    sxy = _box_filter(ixy, (block_size, block_size))
 
     trace = sxx + syy
     det = sxx * syy - sxy * sxy
