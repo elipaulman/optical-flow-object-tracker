@@ -124,7 +124,7 @@ Reference: https://en.wikipedia.org/wiki/Random_sample_consensus
 ### Usage
 Run the tracker on a video:
 ```bash
-python track.py --input soccer_footage_1.mp4 \
+python track.py --input inputs/soccer_footage_1.mp4 \
     --output-video outputs/annotated.mp4 \
     --output-csv outputs/metrics.csv \
     --output-plot outputs/speed.png \
@@ -133,7 +133,7 @@ python track.py --input soccer_footage_1.mp4 \
 ```
 Or on the second sample clip:
 ```bash
-python track.py --input soccer_footage_2.mp4 --output-video outputs/annotated2.mp4
+python track.py --input inputs/soccer_footage_2.mp4 --output-video outputs/annotated2.mp4
 ```
 
 Key arguments:
