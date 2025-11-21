@@ -42,6 +42,7 @@ def parse_args():
     parser.add_argument("--bright-spot-percentile", type=float, default=99.5, help="Percentile threshold for bright-spot blob extraction")
     parser.add_argument("--bright-min-area", type=int, default=1, help="Minimum blob area for bright-spot selection")
     parser.add_argument("--bright-max-area", type=int, default=120, help="Maximum blob area for bright-spot selection (filter out lines)")
+    parser.add_argument("--bright-max-aspect", type=float, default=3.0, help="Reject bright blobs with aspect ratio above this (filters line-like shapes)")
     return parser.parse_args()
 
 
@@ -138,6 +139,7 @@ def run():
         bright_spot_percentile=args.bright_spot_percentile,
         bright_min_area=args.bright_min_area,
         bright_max_area=args.bright_max_area,
+        bright_max_aspect=args.bright_max_aspect,
     )
     tracker.initialize(prev_gray, roi)
 

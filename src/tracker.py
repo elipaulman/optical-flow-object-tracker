@@ -59,6 +59,7 @@ class FeatureTracker:
         bright_spot_percentile=99.5,
         bright_min_area=1,
         bright_max_area=120,
+        bright_max_aspect=3.0,
     ):
         self.max_corners = max_corners
         self.quality_level = quality_level
@@ -78,6 +79,7 @@ class FeatureTracker:
         self.bright_spot_percentile = bright_spot_percentile
         self.bright_min_area = bright_min_area
         self.bright_max_area = bright_max_area
+        self.bright_max_aspect = bright_max_aspect
 
         self.lk = PyramidalLucasKanade(
             window_size=lk_window,
@@ -157,6 +159,11 @@ class FeatureTracker:
         for i in range(1, num_labels):  # skip background
             area = stats[i, cv2.CC_STAT_AREA]
             if area < self.bright_min_area or area > self.bright_max_area:
+                continue
+            w = stats[i, cv2.CC_STAT_WIDTH]
+            h = stats[i, cv2.CC_STAT_HEIGHT]
+            aspect = max(w, h) / max(1, min(w, h))
+            if aspect > self.bright_max_aspect:
                 continue
             cx, cy = centroids[i]
             # Score: brighter and closer to last center if available
