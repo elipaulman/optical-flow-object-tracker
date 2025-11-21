@@ -62,6 +62,8 @@ class FeatureTracker:
         bright_max_aspect=3.0,
         bright_dist_weight=1.0,
         bright_max_jump=60.0,
+        bright_min_fill=0.2,
+        bright_max_dim=120,
     ):
         self.max_corners = max_corners
         self.quality_level = quality_level
@@ -84,6 +86,8 @@ class FeatureTracker:
         self.bright_max_aspect = bright_max_aspect
         self.bright_dist_weight = bright_dist_weight
         self.bright_max_jump = bright_max_jump
+        self.bright_min_fill = bright_min_fill
+        self.bright_max_dim = bright_max_dim
 
         self.lk = PyramidalLucasKanade(
             window_size=lk_window,
@@ -166,8 +170,13 @@ class FeatureTracker:
                 continue
             w = stats[i, cv2.CC_STAT_WIDTH]
             h = stats[i, cv2.CC_STAT_HEIGHT]
+            if w > self.bright_max_dim or h > self.bright_max_dim:
+                continue
             aspect = max(w, h) / max(1, min(w, h))
             if aspect > self.bright_max_aspect:
+                continue
+            fill = area / float(max(1, w * h))
+            if fill < self.bright_min_fill:
                 continue
             cx, cy = centroids[i]
             # Score: brighter and closer to last center if available
