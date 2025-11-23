@@ -11,6 +11,7 @@ from src.vision import preprocess_frame
 
 
 def parse_args():
+    """Parse command-line args for the tracker."""
     parser = argparse.ArgumentParser(description="Pyramidal Lucas-Kanade object tracker")
     parser.add_argument("--input", required=True, help="Path to input video")
     parser.add_argument("--output-video", default="outputs/annotated.mp4", help="Path for annotated output video")
@@ -51,12 +52,14 @@ def parse_args():
 
 
 def ensure_output_paths(args):
+    """Make sure output directories exist."""
     for path_str in [args.output_video, args.output_csv, args.output_plot]:
         if path_str:
             Path(path_str).parent.mkdir(parents=True, exist_ok=True)
 
 
 def default_roi(frame_shape):
+    """Return default ROI (center 50% of frame)."""
     h, w = frame_shape[:2]
     return (
         w * 0.25,
@@ -67,30 +70,38 @@ def default_roi(frame_shape):
 
 
 def compute_scale(args):
+    """Convert pixel distances to meters based on calibration params."""
     if args.meters_per_pixel is not None:
         return args.meters_per_pixel
+    # compute scale from reference object
     if args.reference_length_m is not None and args.reference_pixels is not None and args.reference_pixels > 0:
         return args.reference_length_m / args.reference_pixels
-    return 1.0
+    return 1.0  # fallback: 1 pixel = 1 meter (no calibration)
 
 
 def annotate(frame, roi, points, trajectory, center, speed_m_s, fps):
+    """Draw tracking visualization on the frame."""
     vis = frame.copy()
 
+    # draw ROI box (yellow)
     if roi is not None:
         x, y, w, h = roi
         cv2.rectangle(vis, (int(x), int(y)), (int(x + w), int(y + h)), (0, 255, 255), 2)
 
+    # draw tracked feature points (green)
     for pt in points:
         cv2.circle(vis, (int(pt[0]), int(pt[1])), 3, (0, 255, 0), -1)
 
+    # draw trajectory path (red)
     if len(trajectory) > 1:
         pts = np.int32(trajectory)
         cv2.polylines(vis, [pts], False, (0, 0, 255), 2)
 
+    # draw object center (blue)
     if center is not None:
         cv2.circle(vis, (int(center[0]), int(center[1])), 4, (255, 0, 0), -1)
 
+    # display speed text
     if speed_m_s is not None and fps > 0:
         text = f"Speed: {speed_m_s:.2f} m/s"
         cv2.putText(vis, text, (16, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
@@ -99,29 +110,34 @@ def annotate(frame, roi, points, trajectory, center, speed_m_s, fps):
 
 
 def run():
+    """Main tracking loop - processes video and outputs results."""
     args = parse_args()
     ensure_output_paths(args)
 
+    # open video file
     cap = cv2.VideoCapture(args.input)
     if not cap.isOpened():
         raise RuntimeError(f"Could not open video {args.input}")
 
+    # get video properties
     fps = cap.get(cv2.CAP_PROP_FPS)
     if fps <= 1e-3:
-        fps = 30.0
-    dt = 1.0 / fps
+        fps = 30.0  # default if fps is invalid
+    dt = 1.0 / fps  # time between frames
 
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     ret, frame = cap.read()
     if not ret:
         raise RuntimeError("Failed to read the first frame from video.")
 
+    # preprocess first frame
     prev_gray = preprocess_frame(frame)
     roi = tuple(args.roi) if args.roi else default_roi(frame.shape)
 
-    # Compute scale (pixels -> meters)
+    # compute scale (pixels -> meters) for speed calculation
     scale = compute_scale(args)
 
+    # create tracker with all params from command line
     tracker = FeatureTracker(
         max_corners=args.max_corners,
         quality_level=args.quality_level,
@@ -151,8 +167,10 @@ def run():
         bright_min_fill=args.bright_min_fill,
         bright_max_dim=args.bright_max_dim,
     )
+    # initialize tracker with first frame
     tracker.initialize(prev_gray, roi)
 
+    # setup video writer
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     writer = None
@@ -160,21 +178,25 @@ def run():
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(args.output_video, fourcc, fps, (width, height))
 
-    centers = []
-    speeds = []
-    trajectory = []
+    # tracking state
+    centers = []  # object center per frame
+    speeds = []  # object speed per frame
+    trajectory = []  # path of object centers
     prev_center = None
     frame_idx = 0
 
+    # main processing loop
     while True:
         ret, frame = cap.read()
         if not ret:
-            break
+            break  # end of video
         curr_gray = preprocess_frame(frame)
 
+        # track features from prev to curr frame
         update = tracker.update(prev_gray, curr_gray)
         prev_gray = curr_gray
 
+        # extract object center
         center = update["center"]
         if center is not None:
             trajectory.append(center)
@@ -182,13 +204,15 @@ def run():
         else:
             centers.append(None)
 
+        # compute speed from frame-to-frame displacement
         speed = None
         if prev_center is not None and center is not None:
-            dist_px = np.linalg.norm(center - prev_center)
-            speed = (dist_px * scale) / dt
+            dist_px = np.linalg.norm(center - prev_center)  # distance in pixels
+            speed = (dist_px * scale) / dt  # convert to m/s
         speeds.append(speed if speed is not None else 0.0)
         prev_center = center if center is not None else prev_center
 
+        # draw visualization
         annotated = annotate(
             frame,
             tracker.roi,
@@ -199,17 +223,21 @@ def run():
             fps,
         )
 
+        # write to output video
         if writer is not None:
             writer.write(annotated)
 
+        # progress indicator
         frame_idx += 1
         if total_frames > 0 and frame_idx % max(1, total_frames // 10) == 0:
             print(f"Processed {frame_idx}/{total_frames} frames...")
 
+    # cleanup
     cap.release()
     if writer is not None:
         writer.release()
 
+    # save results
     save_metrics(args.output_csv, centers, speeds)
     save_speed_plot(args.output_plot, speeds, fps)
     print("Tracking complete.")
@@ -219,6 +247,7 @@ def run():
 
 
 def save_metrics(csv_path, centers, speeds):
+    """Export tracking data to CSV."""
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["frame", "center_x", "center_y", "speed_m_s"])
@@ -230,9 +259,10 @@ def save_metrics(csv_path, centers, speeds):
 
 
 def save_speed_plot(plot_path, speeds, fps):
+    """Generate & save speed vs time plot."""
     if not speeds:
         return
-    times = np.arange(len(speeds)) / fps
+    times = np.arange(len(speeds)) / fps  # convert frame nums to seconds
     plt.figure(figsize=(8, 4))
     plt.plot(times, speeds, label="Speed (m/s)")
     plt.xlabel("Time (s)")
