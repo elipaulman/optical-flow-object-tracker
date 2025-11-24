@@ -106,8 +106,19 @@ I evaluate full tracking quality by checking trajectory smoothness, outlier rate
 
 ---
 
+## Course Coverage (slides → techniques we implemented)
+- Noise removal / smoothing (Week 2: Noise Removal) → grayscale conversion and Gaussian blur before gradients.
+- Image pyramids (Week 3: Image Pyramids) → Gaussian pyramids for coarse-to-fine Lucas-Kanade.
+- Edge/gradient computation (Edge Detection) + Interest Points (Week 9: Interest Points) → Sobel gradients and Shi–Tomasi/structure-tensor corner scoring.
+- Tracking (Week 6: KLT Tracking) → Pyramidal Lucas–Kanade with per-level 2×2 normal equation solves.
+- Region Extraction (Week 3: Region Extraction) and Image Segmentation (Week 7: Image Segmentation) → ROI masking, intensity thresholding, connected-components blob selection for the optional bright-spot helper, and size/shape filtering.
+- Simple segmentation/threshold selection (Otsu/bimodal histogram ideas) → percentile-based intensity gating for feature detection.
+- Application glue (pixel-to-meter scaling from a known reference, CSV/plot/video outputs) is project-specific and not a new vision method.
+
+---
+
 ## Outside Techniques
-We use a simple RANSAC procedure for discarding outlier matches when estimating motion models. RANSAC is a small helper and stays well under the 20 percent limit.  
+We use a simple RANSAC procedure for discarding outlier matches when estimating motion models. RANSAC is a small helper and stays well under the 20 percent limit. The optional bright-spot helper is built from slide-covered pieces (thresholding + connected components) and sits inside Region Extraction/Segmentation content.  
 Reference: https://en.wikipedia.org/wiki/Random_sample_consensus
 
 ---
