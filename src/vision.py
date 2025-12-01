@@ -1,6 +1,11 @@
 import cv2
 import numpy as np
 
+'''
+Provides image processing functions for building Gaussian pyramids,
+computing image gradients, and detecting Shi-Tomasi corners.
+Fully implemented using numpy, no built-in functions used.
+'''
 
 def preprocess_frame(frame, blur_ksize=5):
     """Convert BGR frame to blurred grayscale float32."""

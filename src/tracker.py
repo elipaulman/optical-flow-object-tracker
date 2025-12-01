@@ -4,6 +4,12 @@ import numpy as np
 from .pyramidal_lk import PyramidalLucasKanade
 from .vision import preprocess_frame, shi_tomasi_corners
 
+'''
+Orchestration layer: manages feature detection, tracking, and re-detection.
+Uses RANSAC to reject outliers and estimate robust object motion.
+Optionally, tracks bright spots for small/highlighted objects.
+'''
+
 # this is our additional feature mentioned in the project proposal to enhance tracking
 def ransac_translation(prev_pts, curr_pts, threshold=3.0, max_iters=100):
     """Robustly estimate translation between two point sets.

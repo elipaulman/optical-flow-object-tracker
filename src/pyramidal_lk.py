@@ -3,6 +3,11 @@ import numpy as np
 
 from .vision import build_pyramid_with_gradients
 
+'''
+Implementts a custom pyramidal Lucas-Kanade optical flow tracker using numpy
+for tracking 2D points.
+No built-in functions used, custom implemented using numpy.
+'''
 
 class PyramidalLucasKanade:
     """Custom implementation of pyramidal Lucas-Kanade optical flow.
